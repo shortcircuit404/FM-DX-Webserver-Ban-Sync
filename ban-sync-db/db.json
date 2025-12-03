@@ -4,7 +4,7 @@
       "id": 0,
       "ipv4_addresses": ["72.72.149.27"],
       "ipv6_addresses": [],
-      "browser_useragents": [].
+      "browser_useragents": [],
       "usernames": [],
       "ban_reason": "[Auto ban] Spam",
       "evidence_links": [],
@@ -19,7 +19,7 @@
       "id": 1,
       "ipv4_addresses": ["68.134.214.97"],
       "ipv6_addresses": [],
-      "browser_useragents": [].
+      "browser_useragents": [],
       "usernames": [],
       "ban_reason": "Hogging frequencies and retaining connection to TEF server for long extended periods of time with no direct defined activity.",
       "evidence_links": [],
