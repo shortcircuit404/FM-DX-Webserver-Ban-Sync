@@ -22,11 +22,64 @@
     let selectedBanIds = new Set();
 
     /**
+     * Check if user is banned on main page and redirect
+     */
+    function checkBanOnMainPage() {
+        // Periodically check ban status
+        function checkBanStatus() {
+            fetch('/bansync/banned')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.banned) {
+                        // Redirect to ban page
+                        window.location.href = '/banned';
+                    }
+                })
+                .catch(err => {
+                    console.error('[BanSyncPlugin] Error checking ban status:', err);
+                });
+        }
+
+        // Check immediately on page load
+        checkBanStatus();
+
+        // Check every 30 seconds while user is connected
+        setInterval(checkBanStatus, 30000);
+
+        // Hook into WebSocket close events to detect bans immediately
+        const originalWebSocket = window.WebSocket;
+
+        window.WebSocket = function(...args) {
+            const ws = new originalWebSocket(...args);
+
+            // Add ban detection listener (non-blocking)
+            const banCheckListener = (event) => {
+                if (event.code === 1008 && event.reason === 'Banned IP') {
+                    // Redirect to ban page
+                    window.location.href = '/banned';
+                }
+            };
+
+            ws.addEventListener('close', banCheckListener);
+
+            return ws;
+        };
+
+        // Copy static properties and prototype
+        window.WebSocket.prototype = originalWebSocket.prototype;
+        window.WebSocket.CONNECTING = originalWebSocket.CONNECTING;
+        window.WebSocket.OPEN = originalWebSocket.OPEN;
+        window.WebSocket.CLOSING = originalWebSocket.CLOSING;
+        window.WebSocket.CLOSED = originalWebSocket.CLOSED;
+    }
+
+    /**
      * Initialize the plugin when the setup page loads
      */
     function init() {
-        // Only run on setup page
+        // On main page, check for bans
         if (!window.location.pathname.includes('setup')) {
+            checkBanOnMainPage();
             return;
         }
 
