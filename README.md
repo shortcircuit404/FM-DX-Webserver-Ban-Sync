@@ -1,14 +1,12 @@
 # FM-DX Webserver Ban Sync — Database Branch README
 
-This branch contains the synchronized ban-list database used by all participating FM-DX Webserver and TEF server deployments.
+This branch contains the synchronized ban-list database used by all interconnected FM-DX Webserver and TEF deployments.
 
-Only database files should be modified here. **Do not commit source code to this branch.**
+Only the ban database should be modified here. **Do not commit plugin code to this branch.**
 
 ---
 
 ## Database File Location
-
-All data lives in:
 
 ```
 ban-sync-db/db.json
@@ -21,7 +19,7 @@ https://github.com/shortcircuit404/FM-DX-Webserver-Ban-Sync/blob/database/ban-sy
 
 ## JSON Schema Overview
 
-Each banned user entry uses the following structure:
+Each banned user entry uses the following schema:
 
 ```json
 {
@@ -37,67 +35,73 @@ Each banned user entry uses the following structure:
   "hogging_tef_server": false,
   "controversial_reasoning": false,
   "drama_related": false,
-  "other_unspecified_reasons": false
+  "other_unspecified_reasons": false,
+  "ban_date": "",
+  "updated_date": ""
 }
 ```
 
-### Field Definitions
+---
 
-- **id** — Sequential numeric identifier.  
-- **ipv4_addresses / ipv6_addresses** — Known IPs linked to the user.  
-- **browser_useragents** — User-agent strings associated with the user.  
-- **usernames** — Any names tied to the user.  
-- **ban_reason** — Full explanation of the ban.  
-- **evidence_links** — Logs, screenshots, or other supporting items.  
-- **auto_banned** — Whether the system banned them automatically.  
-- **bot_activity** — Whether the user exhibited automated activity.  
-- **hogging_tef_server** — Whether they monopolized TEF frequency access.  
-- **controversial_reasoning** — Unusual or edge-case ban reasons.  
-- **drama_related** — Conflict/harassment–based bans.  
-- **other_unspecified_reasons** — Miscellaneous ban categories.  
+## Field Definitions
+
+- **id** — Incremental numeric identifier.  
+- **ipv4_addresses / ipv6_addresses** — IPs tied to the user.  
+- **browser_useragents** — Known browser User-Agent strings.  
+- **usernames** — Any usernames associated with the user.  
+- **ban_reason** — Detailed explanation for the ban.  
+- **evidence_links** — Logs, screenshots, or other proof.  
+- **auto_banned** — True if system automatically banned them.  
+- **bot_activity** — Indicates bot-like behavior.  
+- **hogging_tef_server** — Frequency monopolization or TEF misuse.  
+- **controversial_reasoning** — Ban reasoning outside typical rule violations.  
+- **drama_related** — Behavior involving harassment or conflict.  
+- **other_unspecified_reasons** — Miscellaneous category.  
+- **ban_date** — UTC ISO timestamp of when the ban was added.  
+- **updated_date** — UTC ISO timestamp for latest modification.  
 
 ---
 
 ## Contribution Rules
 
-To maintain the integrity of the shared ban list, contributors must follow these rules:
+### ✔ All pull requests must target the `database` branch
 
-### ✔ All PRs must target the `database` branch
+Do not modify the `main` branch unless editing the plugin code.
 
-Do **not** modify the `main` branch unless working on the plugin code itself.
+### ✔ Only modify `ban-sync-db/db.json`
 
-### ✔ Modify only `ban-sync-db/db.json`
+Avoid altering other files unless coordinated with maintainers.
 
-Changes to other files in this branch should be avoided unless coordinated with maintainers.
+### ✔ Never overwrite or remove existing entries
 
-### ✔ Never overwrite existing users
+- Update only when new verified information becomes available.  
+- Always update **updated_date** on modifications.  
+- Never reuse an **id**.
 
-- Do not delete or replace users.
-- Only update an existing entry when new verified information is available.
-- Always append new entries using the next available `id`.
+### ✔ Provide full reasoning and supporting evidence
 
-### ✔ Provide clear reasoning and evidence
+A valid entry requires:
 
-Every new ban must include:
+- Full **ban_reason**  
+- **evidence_links** (if available)  
+- Accurate metadata (IPs, UA strings, usernames)  
+- Correct timestamps  
 
-- A meaningful **ban_reason**
-- Any available **evidence_links**
-- Relevant IPs, usernames, and user-agents
+### ✔ Appealing a Ban
 
-### ✔ False Ban? Submit an Appeal
-
-If you believe your ban is inaccurate:
+If you believe your ban is incorrect:
 
 **Ban Appeal Form:**  
-*Replace this text with the proper link.*
+*Replace this section with the correct link.*
 
 ---
 
 ## Pull Request Instructions
 
-1. Fork the repository  
+1. Fork repository  
 2. Checkout the **database** branch  
 3. Edit `ban-sync-db/db.json`  
-4. Validate JSON formatting before commit  
-5. Commit your changes with a descriptive message  
-6. Open a PR against the **database** branch  
+4. Validate JSON formatting  
+5. Commit with a descriptive message  
+6. Open a PR targeting the **database** branch  
+7. Await review  
