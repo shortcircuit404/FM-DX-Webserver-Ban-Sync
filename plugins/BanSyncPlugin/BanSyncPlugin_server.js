@@ -733,6 +733,328 @@ endpointsRouter.get('/bansync/check', (req, res) => {
     }
 });
 
+/**
+ * Check current user's ban status (public endpoint)
+ */
+endpointsRouter.get('/bansync/banned', (req, res) => {
+    let clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+    if (clientIp && clientIp.includes(',')) {
+        clientIp = clientIp.split(',')[0].trim();
+    }
+
+    const banEntry = checkIpBanned(clientIp);
+
+    if (banEntry) {
+        res.json({
+            banned: true,
+            reason: banEntry.ban_reason,
+            evidence: banEntry.evidence_links || [],
+            ban_date: banEntry.ban_date,
+            appeal_url: BAN_APPEAL_URL,
+            repo_url: GITHUB_REPO_URL
+        });
+    } else {
+        res.json({ banned: false });
+    }
+});
+
+/**
+ * Serve custom ban page
+ */
+endpointsRouter.get('/banned', (req, res) => {
+    let clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+    if (clientIp && clientIp.includes(',')) {
+        clientIp = clientIp.split(',')[0].trim();
+    }
+
+    const banEntry = checkIpBanned(clientIp);
+
+    if (!banEntry) {
+        return res.redirect('/');
+    }
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied - Banned</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 2px solid #ff4444;
+        }
+        h1 {
+            color: #ff4444;
+            font-size: 48px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        .subtitle {
+            font-size: 24px;
+            color: #ffaa00;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .info-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #ff4444;
+        }
+        .info-label {
+            color: #888;
+            font-size: 14px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            color: #fff;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .evidence-list {
+            list-style: none;
+            padding: 0;
+        }
+        .evidence-list li {
+            margin: 10px 0;
+        }
+        .evidence-list a {
+            color: #4CAF50;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .evidence-list a:hover {
+            text-decoration: underline;
+        }
+        .actions {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .btn {
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        .ip-display {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            color: #888;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fa-solid fa-ban"></i> Access Denied</h1>
+        <p class="subtitle">Your IP address has been banned from this server</p>
+
+        <div class="info-box">
+            <div class="info-label">Ban Reason</div>
+            <div class="info-value">${banEntry.ban_reason || 'No reason provided'}</div>
+        </div>
+
+        ${banEntry.evidence_links && banEntry.evidence_links.length > 0 ? `
+        <div class="info-box">
+            <div class="info-label">Evidence</div>
+            <ul class="evidence-list">
+                ${banEntry.evidence_links.map(link => `<li><i class="fa-solid fa-link"></i> <a href="${link}" target="_blank">${link}</a></li>`).join('')}
+            </ul>
+        </div>
+        ` : ''}
+
+        <div class="info-box">
+            <div class="info-label">Ban Date</div>
+            <div class="info-value">${banEntry.ban_date ? new Date(banEntry.ban_date).toLocaleString() : 'Unknown'}</div>
+        </div>
+
+        <div class="info-box">
+            <div class="info-label">Ban Source</div>
+            <div class="info-value">${banEntry.source === 'local' ? 'Local Server Ban' : 'Synchronized Global Ban Database'}</div>
+        </div>
+
+        <div class="actions">
+            <a href="${BAN_APPEAL_URL}" target="_blank" class="btn btn-primary">
+                <i class="fa-solid fa-clipboard-question"></i>
+                Submit Ban Appeal
+            </a>
+            <a href="${GITHUB_REPO_URL}" target="_blank" class="btn btn-secondary">
+                <i class="fa-brands fa-github"></i>
+                Learn About Ban System
+            </a>
+        </div>
+
+        <div class="ip-display">
+            Your IP: ${clientIp}
+        </div>
+
+        <div class="footer">
+            <p>If you believe this ban is a mistake, please use the appeal form above.</p>
+            <p>Bans are reviewed by server administrators and community moderators.</p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+
+    res.send(html);
+});
+
+// ============================================================================
+// WEBSOCKET INTEGRATION
+// ============================================================================
+
+/**
+ * Hook into WebSocket connections to check bans
+ * This runs after a delay to ensure the server is fully initialized
+ */
+function setupWebSocketHook() {
+    try {
+        // Get the server module to access WebSocket servers
+        const serverModule = require('../../server/index');
+
+        // We need to access the global wss, chatWss, rdsWss, pluginsWss
+        // Since they're not exported, we'll hook into the endpoints to add banned IPs to main banlist
+        console.log('[BanSyncPlugin] WebSocket hook setup - will sync bans to main banlist');
+
+        // Function to sync plugin bans to main server banlist
+        syncBansToServerBanlist();
+
+        // Re-sync every 60 seconds
+        setInterval(syncBansToServerBanlist, 60000);
+
+    } catch (error) {
+        console.error('[BanSyncPlugin] Error setting up WebSocket hook:', error);
+    }
+}
+
+/**
+ * Sync plugin bans to the main server banlist
+ * This ensures the built-in ban checking will catch our banned users
+ */
+function syncBansToServerBanlist() {
+    try {
+        const { serverConfig } = require('../../server/server_config');
+
+        if (!serverConfig || !serverConfig.webserver) {
+            console.error('[BanSyncPlugin] Server config not accessible');
+            return;
+        }
+
+        if (!serverConfig.webserver.banlist) {
+            serverConfig.webserver.banlist = [];
+        }
+
+        // Get all IPs from synced and local bans
+        const bannedIps = new Set();
+
+        // Add synced bans that match auto-ban criteria
+        for (const bannedUser of syncedBans.banned_users || []) {
+            if (shouldAutoBan(bannedUser)) {
+                bannedUser.ipv4_addresses?.forEach(ip => bannedIps.add(ip));
+                bannedUser.ipv6_addresses?.forEach(ip => bannedIps.add(ip));
+            }
+        }
+
+        // Add local bans
+        for (const bannedUser of localBans.banned_users || []) {
+            bannedUser.ipv4_addresses?.forEach(ip => bannedIps.add(ip));
+            bannedUser.ipv6_addresses?.forEach(ip => bannedIps.add(ip));
+        }
+
+        // Sync to main banlist (preserve format: [ip, location, timestamp, reason])
+        const pluginBanPrefix = '[BanSync]';
+
+        // Remove old BanSync entries (both array and string formats)
+        serverConfig.webserver.banlist = serverConfig.webserver.banlist.filter(ban => {
+            if (Array.isArray(ban) && ban[3]?.startsWith(pluginBanPrefix)) {
+                return false;
+            }
+            if (typeof ban === 'string' && bannedIps.has(ban)) {
+                return false; // Remove old string format bans from plugin
+            }
+            return true;
+        });
+
+        // Add current banned IPs in BOTH formats for compatibility
+        for (const ip of bannedIps) {
+            const existingBan = serverConfig.webserver.banlist.find(ban =>
+                (Array.isArray(ban) && ban[0] === ip) || ban === ip
+            );
+
+            if (!existingBan) {
+                // Add as simple string (for includes() check at line 375)
+                serverConfig.webserver.banlist.push(ip);
+
+                // Also add as array format (for setup page display)
+                serverConfig.webserver.banlist.push([
+                    ip,
+                    'Unknown',
+                    Date.now(),
+                    `${pluginBanPrefix} Banned via Ban Sync Plugin`
+                ]);
+            }
+        }
+
+        console.log(`[BanSyncPlugin] Synced ${bannedIps.size} banned IPs to server banlist`);
+
+    } catch (error) {
+        console.error('[BanSyncPlugin] Error syncing to server banlist:', error);
+    }
+}
+
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
@@ -747,9 +1069,13 @@ downloadBanDatabase()
     .then(() => {
         console.log('[BanSyncPlugin] Initial ban database sync completed');
         monitorConnectedUsers();
+        // Setup WebSocket hook after database is loaded
+        setupWebSocketHook();
     })
     .catch((error) => {
         console.error('[BanSyncPlugin] Failed to download ban database on startup:', error);
+        // Still setup WebSocket hook even if download fails
+        setupWebSocketHook();
     });
 
 // Start auto-sync if enabled
